@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Faculty Ledger — Payroll & Attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16233D;
+    --ink-2:#1F3358;
+    --ink-3:#2A4270;
+    --parchment:#F3EEDF;
+    --paper:#FFFDF7;
+    --brass:#B4884A;
+    --brass-light:#D9B87C;
+    --brass-dark:#8C6530;
+    --sage:#4C7A5E;
+    --sage-bg:#E4EEE6;
+    --amber:#C97A2E;
+    --amber-bg:#F5E5D3;
+    --terracotta:#B04B3B;
+    --terracotta-bg:#F3DFDA;
+    --ink-text:#232B3A;
+    --muted:#7A7266;
+    --line:#DED4BC;
+    --radius:10px;
+    --shadow: 0 1px 2px rgba(22,35,61,0.06), 0 6px 20px rgba(22,35,61,0.07);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html, body{ height:100%; overflow:hidden; }
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--parchment);
+    color:var(--ink-text);
+    display:flex;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--brass-light); color:var(--ink);}
+
+  h1,h2,h3,.display{ font-family:'Lora', serif; }
+
+  /* ===== Sidebar (fixed, never scrolls or moves) ===== */
+  .sidebar{
+    width:250px;
+    min-width:250px;
+    background:linear-gradient(180deg, var(--ink) 0%, #101B30 100%);
+    color:#EDE7D6;
+    display:flex;
+    flex-direction:column;
+    padding:28px 0;
+    position:fixed;
+    top:0;
+    left:0;
+    height:100vh;
+    z-index:10;
+    overflow-y:auto;
+  }
+  .brand{
+    padding:0 24px 22px 24px;
+    border-bottom:1px solid rgba(212,190,140,0.18);
+    margin-bottom:18px;
+  }
+  .brand .mark{
+    width:38px; height:38px;
+    border:1.5px solid var(--brass);
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Lora', serif; font-weight:700; font-size:16px;
+    color:var(--brass-light);
+    margin-bottom:12px;
+  }
+  .brand h1{
+    font-size:19px; font-weight:600; letter-spacing:0.2px; color:#F6F1E4;
+    line-height:1.25;
+  }
+  .brand p{
+    font-size:11.5px; color:#9CA9C4; margin-top:4px; letter-spacing:0.6px; text-transform:uppercase;
+  }
+  nav{ display:flex; flex-direction:column; gap:2px; padding:0 14px; }
+  .nav-item{
+    display:flex; align-items:center; gap:12px;
+    padding:11px 14px;
+    border-radius:8px;
+    color:#C7CEE0;
+    font-size:14px; font-weight:500;
+    cursor:pointer;
+    border:none; background:none; text-align:left; width:100%;
+    transition:background .15s ease, color .15s ease;
+    font-family:'Inter',sans-serif;
+    position:relative;
+  }
+  .nav-item svg{ width:17px; height:17px; flex-shrink:0; opacity:.85; }
+  .nav-item:hover{ background:rgba(212,190,140,0.08); color:#F6F1E4; }
+  .nav-item.active{ background:rgba(212,190,140,0.14); color:#F6F1E4; }
+  .nav-item.active::before{
+    content:''; position:absolute; left:-14px; top:8px; bottom:8px; width:3px;
+    background:var(--brass); border-radius:0 3px 3px 0;
+  }
+  .nav-footer{
+    margin-top:auto; padding:16px 24px 0 24px; border-top:1px solid rgba(212,190,140,0.14);
+  }
+  .nav-footer p{ font-size:11px; color:#7C88A6; line-height:1.5; }
+
+  /* ===== Main (scrolls independently, offset by fixed sidebar) ===== */
+  .main{
+    flex:1;
+    margin-left:250px;
+    padding:36px 44px 60px;
+    max-width:1180px;
+    height:100vh;
+    overflow-y:auto;
+  }
+  .topline{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:28px; flex-wrap:wrap; gap:14px;}
+  .topline h2{ font-size:26px; font-weight:600; color:var(--ink); }
+  .topline .sub{ font-size:13.5px; color:var(--muted); margin-top:4px; }
+  .view{ display:none; animation:fade .25s ease; }
+  .view.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  /* buttons */
+  .btn{
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:600;
+    padding:10px 18px; border-radius:8px; border:1px solid transparent;
+    cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+    transition:all .15s ease;
+  }
+  .btn-primary{ background:var(--ink); color:#F6F1E4; }
+  .btn-primary:hover{ background:var(--ink-3); }
+  .btn-brass{ background:var(--brass); color:#2A1D0B; }
+  .btn-brass:hover{ background:var(--brass-dark); color:#fff; }
+  .btn-ghost{ background:transparent; color:var(--ink); border-color:var(--line); }
+  .btn-ghost:hover{ background:#EDE6D2; }
+  .btn-sm{ padding:7px 12px; font-size:12.5px; }
+
+  /* ===== Dashboard stat cards ===== */
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }
+  .stat-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+  }
+  .stat-card .tag{ font-size:11px; text-transform:uppercase; letter-spacing:0.7px; color:var(--muted); font-weight:600; }
+  .stat-card .num{ font-family:'JetBrains Mono', monospace; font-size:28px; font-weight:700; color:var(--ink); margin-top:8px; }
+  .stat-card .foot{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .stat-card::after{
+    content:''; position:absolute; right:-10px; top:-10px; width:60px; height:60px; border-radius:50%;
+    background:var(--accent, var(--brass)); opacity:0.08;
+  }
+  .stat-card.sage{ --accent:var(--sage); }
+  .stat-card.amber{ --accent:var(--amber); }
+  .stat-card.terracotta{ --accent:var(--terracotta); }
+
+  .panel{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:22px 24px; margin-bottom:24px;
+  }
+  .panel-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;}
+  .panel-head h3{ font-size:16px; font-weight:600; color:var(--ink); }
+  .ledger-lines{
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 37px, var(--line) 38px);
+  }
+
+  /* ===== Table ===== */
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;
+    color:var(--muted); font-weight:700; padding:0 10px 10px; border-bottom:1.5px solid var(--ink);
+  }
+  tbody td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tbody tr{ cursor:pointer; transition:background .12s; }
+  tbody tr:hover{ background:#F8F3E5; }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+
+  .avatar{
+    width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:'Lora',serif; font-weight:600; font-size:13px; color:#fff;
+    background:linear-gradient(135deg, var(--ink-3), var(--ink)); border:1.5px solid var(--brass-light);
+  }
+  .name-cell{ display:flex; align-items:center; gap:10px; }
+  .name-cell .who b{ display:block; font-weight:600; color:var(--ink); }
+  .name-cell .who span{ font-size:11.5px; color:var(--muted); }
+
+  /* status stamp */
+  .stamp{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:'Inter',sans-serif; font-weight:700; font-size:10.5px; letter-spacing:0.8px; text-transform:uppercase;
+    padding:5px 10px; border-radius:20px; border:1.5px solid; line-height:1;
+  }
+  .stamp::before{ content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .stamp.present{ color:var(--sage); background:var(--sage-bg); border-color:var(--sage); }
+  .stamp.half{ color:var(--amber); background:var(--amber-bg); border-color:var(--amber); }
+  .stamp.leave{ color:var(--terracotta); background:var(--terracotta-bg); border-color:var(--terracotta); }
+  .stamp.unmarked{ color:var(--muted); background:#EFEAD9; border-color:var(--line); }
+
+  /* ===== Search / inputs ===== */
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12px; font-weight:600; color:var(--ink); }
+  input[type=text], input[type=email], input[type=number], input[type=date], select{
+    font-family:'Inter',sans-serif; font-size:13.5px; padding:10px 12px;
+    border:1px solid var(--line); border-radius:7px; background:var(--paper); color:var(--ink-text);
+    outline:none; transition:border-color .15s;
+  }
+  input:focus, select:focus{ border-color:var(--brass); box-shadow:0 0 0 3px rgba(180,136,74,0.15); }
+  .search-box{ position:relative; width:260px; }
+  .search-box input{ width:100%; padding-left:34px; }
+  .search-box svg{ position:absolute; left:11px; top:50%; transform:translateY(-50%); width:15px; height:15px; opacity:.5; }
+
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px 16px; }
+  .form-grid .full{ grid-column:1 / -1; }
+
+  /* ===== Modal ===== */
+  .overlay{
+    position:fixed; inset:0; background:rgba(16,27,48,0.55); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .overlay.active{ display:flex; }
+  .modal{
+    background:var(--paper); border-radius:12px; width:100%; max-width:560px;
+    max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);
+    border:1px solid var(--line);
+  }
+  .modal-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:20px 24px; border-bottom:1px solid var(--line);
+  }
+  .modal-head h3{ font-size:17px; font-weight:600; }
+  .modal-body{ padding:22px 24px; }
+  .modal-foot{ padding:16px 24px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:10px; }
+  .close-x{ background:none; border:none; cursor:pointer; font-size:20px; color:var(--muted); line-height:1;}
+  .close-x:hover{ color:var(--ink); }
+
+  /* ===== Attendance marking ===== */
+  .att-row{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:13px 6px; border-bottom:1px solid var(--line);
+  }
+  .att-row:last-child{ border-bottom:none; }
+  .stamp-choices{ display:flex; gap:8px; }
+  .choice{
+    font-family:'Inter',sans-serif; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+    padding:7px 12px; border-radius:20px; border:1.5px solid var(--line); background:var(--paper);
+    color:var(--muted); cursor:pointer; transition:all .12s;
+  }
+  .choice:hover{ border-color:var(--brass); }
+  .choice.sel-present.on{ background:var(--sage-bg); color:var(--sage); border-color:var(--sage); }
+  .choice.sel-half.on{ background:var(--amber-bg); color:var(--amber); border-color:var(--amber); }
+  .choice.sel-leave.on{ background:var(--terracotta-bg); color:var(--terracotta); border-color:var(--terracotta); }
+
+  /* ===== Employee detail ===== */
+  .profile-head{ display:flex; gap:18px; align-items:center; margin-bottom:6px; }
+  .profile-head .avatar{ width:56px; height:56px; font-size:19px; }
+  .profile-head h2{ font-size:21px; }
+  .profile-head .sub{ font-size:13px; color:var(--muted); margin-top:2px; }
+  .id-card{
+    border:1.5px dashed var(--brass); border-radius:10px; padding:16px 18px; background:#FBF7EA;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:18px 0;
+  }
+  .id-card .item .k{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.6px; color:var(--muted); font-weight:700;}
+  .id-card .item .v{ font-family:'JetBrains Mono', monospace; font-size:14px; color:var(--ink); margin-top:3px; font-weight:600; }
+
+  .month-picker{ display:flex; align-items:center; gap:10px; }
+
+  .salary-breakdown{ display:grid; grid-template-columns:1fr 1fr; gap:0 40px; }
+  .sb-line{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .sb-line b{ font-family:'JetBrains Mono',monospace; }
+  .sb-line.net{ border-bottom:none; border-top:2px solid var(--ink); margin-top:4px; padding-top:12px; font-size:15px; }
+  .sb-line.net b{ color:var(--sage); font-size:17px; }
+  .sb-line.deduct b{ color:var(--terracotta); }
+
+  .empty-state{ text-align:center; padding:50px 20px; color:var(--muted); }
+  .empty-state svg{ width:44px; height:44px; opacity:.35; margin-bottom:12px; }
+  .empty-state p{ font-size:13.5px; }
+
+  .back-link{ display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); cursor:pointer; margin-bottom:16px; font-weight:600;}
+  .back-link:hover{ color:var(--ink); }
+
+  .badge-count{ background:var(--ink); color:#F6F1E4; font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:10px; margin-left:auto; font-family:'JetBrains Mono',monospace; }
+
+  .att-editor{ max-height:340px; overflow-y:auto; }
+  .att-editor .row-day{
+    display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--line);
+  }
+  .att-editor .row-day:last-child{ border-bottom:none; }
+  .att-editor .choice{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;
+    padding:6px 11px; border-radius:20px; border:1.5px solid var(--line); background:var(--paper);
+    color:var(--muted); cursor:pointer; margin-left:6px;
+  }
+  .att-editor .choice.sel-present.on{ background:var(--sage-bg); color:var(--sage); border-color:var(--sage); }
+  .att-editor .choice.sel-half.on{ background:var(--amber-bg); color:var(--amber); border-color:var(--amber); }
+  .att-editor .choice.sel-leave.on{ background:var(--terracotta-bg); color:var(--terracotta); border-color:var(--terracotta); }
+  .sb-summary{ display:flex; justify-content:space-between; padding:8px 0; font-size:13px; border-bottom:1px solid var(--line); }
+  .sb-summary.net{ border-bottom:none; border-top:2px solid var(--ink); margin-top:4px; padding-top:10px; font-weight:700; }
+  .sb-summary.net b{ color:var(--sage); font-size:16px; font-family:'JetBrains Mono',monospace; }
+  .icon-btn{
+    background:none; border:1px solid var(--line); border-radius:6px; width:28px; height:28px;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--muted);
+  }
+  .icon-btn:hover{ border-color:var(--brass); color:var(--ink); }
+  .icon-btn svg{ width:14px; height:14px; }
+
+  @media (max-width: 880px){
+    html, body{ overflow:auto; height:auto; }
+    body{ flex-direction:column; }
+    .sidebar{ position:relative; width:100%; height:auto; flex-direction:row; align-items:center; padding:14px 18px; overflow-y:visible; }
+    .brand{ border:none; padding:0; margin:0; display:flex; align-items:center; gap:10px;}
+    .brand .mark{ margin:0; }
+    .brand p{ display:none; }
+    nav{ flex-direction:row; padding:0; margin-left:auto; }
+    .nav-footer{ display:none; }
+    .nav-item.active::before{ display:none; }
+    .main{ margin-left:0; height:auto; overflow-y:visible; padding:22px 18px 40px; }
+    .stat-grid{ grid-template-columns:1fr 1fr; }
+    .form-grid{ grid-template-columns:1fr; }
+    .id-card{ grid-template-columns:1fr 1fr; }
+    .salary-breakdown{ grid-template-columns:1fr; }
+    .att-row{ flex-direction:column; align-items:flex-start; gap:8px; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="mark">FL</div>
+    <h1>The Faculty Ledger</h1>
+    <p>Payroll &amp; Attendance</p>
+  </div>
+  <nav>
+    <button class="nav-item active" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-item" data-view="roster">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Faculty Roster
+    </button>
+    <button class="nav-item" data-view="attendance">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+      Attendance
+    </button>
+    <button class="nav-item" data-view="payroll">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+      Payroll
+    </button>
+  </nav>
+  <div class="nav-footer">
+    <p>Records are kept for this session only. Refreshing the page clears the ledger.</p>
+  </div>
+</aside>
+
+<main class="main">
+
+  <!-- ================= DASHBOARD ================= -->
+  <section class="view active" id="view-dashboard">
+    <div class="topline">
+      <div>
+        <h2>Dashboard</h2>
+        <div class="sub" id="dashDateLabel"></div>
+      </div>
+      <button class="btn btn-brass" onclick="goTo('attendance')">Mark Today's Attendance</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="tag">Faculty on Roll</div>
+        <div class="num" id="statTotal">0</div>
+        <div class="foot">Active employee records</div>
+      </div>
+      <div class="stat-card sage">
+        <div class="tag">Present Today</div>
+        <div class="num" id="statPresent">0</div>
+        <div class="foot">Full day, no deduction</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="tag">Half Day Today</div>
+        <div class="num" id="statHalf">0</div>
+        <div class="foot">Half salary deducted</div>
+      </div>
+      <div class="stat-card terracotta">
+        <div class="tag">On Leave Today</div>
+        <div class="num" id="statLeave">0</div>
+        <div class="foot">Full day deducted</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>This Month's Payroll Snapshot — <span id="monthLabelDash"></span></h3>
+        <button class="btn btn-ghost btn-sm" onclick="goTo('payroll')">View full payroll →</button>
+      </div>
+      <table>
+        <thead><tr><th>Faculty</th><th>Department</th><th>Base Salary</th><th>Deducted</th><th>Net Salary</th></tr></thead>
+        <tbody id="dashPayrollBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= ROSTER ================= -->
+  <section class="view" id="view-roster">
+    <div class="topline">
+      <div>
+        <h2>Faculty Roster</h2>
+        <div class="sub">View employee records or add a new faculty member.</div>
+      </div>
+      <button class="btn btn-brass" onclick="openAddModal()">+ Add Faculty</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="rosterSearch" placeholder="Search by name or department…" oninput="renderRoster()">
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Faculty</th><th>Designation</th><th>Department</th><th>Monthly Salary</th><th>Joined</th><th></th></tr></thead>
+        <tbody id="rosterBody"></tbody>
+      </table>
+      <div id="rosterEmpty" class="empty-state" style="display:none;">
+        <p>No faculty match your search.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= EMPLOYEE DETAIL ================= -->
+  <section class="view" id="view-detail">
+    <span class="back-link" onclick="goTo('roster')">← Back to Roster</span>
+    <div class="panel" id="detailProfilePanel"></div>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Net Salary — <span id="detailMonthLabel"></span></h3>
+        <div class="month-picker">
+          <input type="month" id="detailMonthInput">
+        </div>
+      </div>
+      <div id="detailSalaryBody"></div>
+    </div>
+    <div class="panel">
+      <h3 style="margin-bottom:14px;">Attendance History — <span id="detailMonthLabel2"></span></h3>
+      <table>
+        <thead><tr><th>Date</th><th>Day</th><th>Status</th></tr></thead>
+        <tbody id="detailAttBody"></tbody>
+      </table>
+      <div id="detailAttEmpty" class="empty-state" style="display:none;"><p>No attendance marked for this month yet.</p></div>
+    </div>
+  </section>
+
+  <!-- ================= ATTENDANCE ================= -->
+  <section class="view" id="view-attendance">
+    <div class="topline">
+      <div>
+        <h2>Mark Attendance</h2>
+        <div class="sub">Select a date, then set each faculty member's status for that day.</div>
+      </div>
+      <input type="date" id="attDatePicker">
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Status for <span id="attDateLabel"></span></h3>
+        <button class="btn btn-primary btn-sm" onclick="saveAttendance()">Save Attendance</button>
+      </div>
+      <div id="attList"></div>
+      <div id="attEmpty" class="empty-state" style="display:none;">
+        <p>Add faculty to the roster before marking attendance.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PAYROLL ================= -->
+  <section class="view" id="view-payroll">
+    <div class="topline">
+      <div>
+        <h2>Payroll</h2>
+        <div class="sub">Salary is calculated from base pay minus attendance deductions for the selected month.</div>
+      </div>
+      <input type="month" id="payrollMonthInput">
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="tag">Faculty on Roll</div>
+        <div class="num" id="payStatCount">0</div>
+        <div class="foot">Active this month</div>
+      </div>
+      <div class="stat-card">
+        <div class="tag">Gross Payroll</div>
+        <div class="num" id="payStatGross">₹0</div>
+        <div class="foot">Sum of base salaries</div>
+      </div>
+      <div class="stat-card terracotta">
+        <div class="tag">Total Deductions</div>
+        <div class="num" id="payStatDeduct">₹0</div>
+        <div class="foot">From half days &amp; leave</div>
+      </div>
+      <div class="stat-card sage">
+        <div class="tag">Net Payroll</div>
+        <div class="num" id="payStatNet">₹0</div>
+        <div class="foot">Actual amount payable</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3 id="payrollPanelLabel">Payroll — This Month</h3>
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="payrollSearch" placeholder="Search faculty or department…" oninput="renderPayroll()">
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Faculty</th><th>Department</th><th>Present</th><th>Half Day</th><th>Leave</th><th>Base Salary</th><th>Deducted</th><th>Net Salary</th><th></th></tr>
+        </thead>
+        <tbody id="payrollBody"></tbody>
+      </table>
+      <div id="payrollEmpty" class="empty-state" style="display:none;"><p>No faculty on roll yet.</p></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== Attendance / Salary Editor Modal (from Payroll) ===== -->
+<div class="overlay" id="attEditModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="attEditModalTitle">Attendance</h3>
+      <button class="close-x" onclick="closeAttEditModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="attEditSummary" style="margin-bottom:16px;"></div>
+      <div class="att-editor" id="attEditDays"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-brass" onclick="closeAttEditModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Add Faculty Modal ===== -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Add Faculty Member</h3>
+      <button class="close-x" onclick="closeAddModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full">
+          <label>Full Name</label>
+          <input type="text" id="fName" placeholder="e.g. Dr. Meera Rao">
+        </div>
+        <div class="field">
+          <label>Designation</label>
+          <input type="text" id="fDesignation" placeholder="Assistant Professor">
+        </div>
+        <div class="field">
+          <label>Department</label>
+          <input type="text" id="fDept" placeholder="Computer Science">
+        </div>
+        <div class="field">
+          <label>Monthly Base Salary (₹)</label>
+          <input type="number" id="fSalary" placeholder="65000" min="0">
+        </div>
+        <div class="field">
+          <label>Date of Joining</label>
+          <input type="date" id="fJoined">
+        </div>
+        <div class="field full">
+          <label>Email</label>
+          <input type="email" id="fEmail" placeholder="name@college.edu">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeAddModal()">Cancel</button>
+      <button class="btn btn-brass" onclick="submitAddFaculty()">Add Faculty</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== DATA ===================== */
+let employees = [
+  { id: 'F001', name: 'Dr. Meera Rao', designation: 'Associate Professor', dept: 'Computer Science', salary: 78000, joined: '2019-06-12', email: 'meera.rao@college.edu' },
+  { id: 'F002', name: 'Prof. Arjun Nair', designation: 'Assistant Professor', dept: 'Mechanical Engg.', salary: 62000, joined: '2021-01-08', email: 'arjun.nair@college.edu' },
+  { id: 'F003', name: 'Dr. Kavitha Iyer', designation: 'Professor', dept: 'Mathematics', salary: 95000, joined: '2015-07-01', email: 'kavitha.iyer@college.edu' },
+  { id: 'F004', name: 'Mr. Sameer Qureshi', designation: 'Lecturer', dept: 'Electronics', salary: 48000, joined: '2023-03-20', email: 'sameer.q@college.edu' },
+];
+
+// attendance[empId][YYYY-MM-DD] = 'present' | 'half' | 'leave'
+let attendance = {};
+
+let nextIdNum = 5;
+let currentDetailId = null;
+
+/* seed a little attendance history so the dashboard isn't empty */
+(function seed(){
+  const today = new Date();
+  for (let d = 1; d <= today.getDate(); d++) {
+    const dt = new Date(today.getFullYear(), today.getMonth(), d);
+    if (dt.getDay() === 0) continue; // skip Sundays
+    const key = fmtDate(dt);
+    employees.forEach((e, i) => {
+      const r = (d + i) % 11;
+      if (r === 0) attendance[e.id] = { ...(attendance[e.id]||{}), [key]: 'leave' };
+      else if (r === 1) attendance[e.id] = { ...(attendance[e.id]||{}), [key]: 'half' };
+      else attendance[e.id] = { ...(attendance[e.id]||{}), [key]: 'present' };
+    });
+  }
+})();
+
+/* ===================== HELPERS ===================== */
+function fmtDate(d){
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function todayKey(){ return fmtDate(new Date()); }
+function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function currentMonthKey(){ return monthKey(new Date()); }
+function daysInMonth(y, mIndex){ return new Date(y, mIndex+1, 0).getDate(); }
+function initials(name){
+  return name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i,'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+}
+function money(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
+function monthLabel(ym){
+  const [y,m] = ym.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+}
+function dateLabel(dstr){
+  const [y,m,d] = dstr.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+}
+
+/* Compute salary breakdown for one employee for a given YYYY-MM */
+function computeSalary(emp, ym){
+  const [y, m] = ym.split('-').map(Number);
+  const totalDays = daysInMonth(y, m-1);
+  const perDay = emp.salary / totalDays;
+  const rec = attendance[emp.id] || {};
+  let present = 0, half = 0, leave = 0;
+  Object.keys(rec).forEach(dateStr => {
+    if (!dateStr.startsWith(ym)) return;
+    if (rec[dateStr] === 'present') present++;
+    else if (rec[dateStr] === 'half') half++;
+    else if (rec[dateStr] === 'leave') leave++;
+  });
+  const deduction = (leave * perDay) + (half * perDay * 0.5);
+  const net = emp.salary - deduction;
+  return { totalDays, perDay, present, half, leave, deduction, net };
+}
+
+/* ===================== NAVIGATION ===================== */
+function goTo(view){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'roster') renderRoster();
+  if (view === 'attendance') renderAttendance();
+  if (view === 'payroll') renderPayroll();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => goTo(btn.dataset.view));
+});
+
+/* ===================== DASHBOARD ===================== */
+function renderDashboard(){
+  document.getElementById('dashDateLabel').textContent = dateLabel(todayKey());
+  document.getElementById('monthLabelDash').textContent = monthLabel(currentMonthKey());
+  document.getElementById('statTotal').textContent = employees.length;
+
+  let present=0, half=0, leave=0;
+  const tk = todayKey();
+  employees.forEach(e => {
+    const st = (attendance[e.id]||{})[tk];
+    if (st === 'present') present++;
+    else if (st === 'half') half++;
+    else if (st === 'leave') leave++;
+  });
+  document.getElementById('statPresent').textContent = present;
+  document.getElementById('statHalf').textContent = half;
+  document.getElementById('statLeave').textContent = leave;
+
+  const body = document.getElementById('dashPayrollBody');
+  body.innerHTML = '';
+  employees.forEach(e => {
+    const s = computeSalary(e, currentMonthKey());
+    body.innerHTML += `
+      <tr onclick="openDetail('${e.id}')">
+        <td class="name-cell"><div class="avatar">${initials(e.name)}</div><div class="who"><b>${e.name}</b><span>${e.designation}</span></div></td>
+        <td>${e.dept}</td>
+        <td class="mono">${money(e.salary)}</td>
+        <td class="mono" style="color:var(--terracotta)">${s.deduction>0? '−'+money(s.deduction) : '—'}</td>
+        <td class="mono" style="font-weight:700;color:var(--sage)">${money(s.net)}</td>
+      </tr>`;
+  });
+}
+
+/* ===================== ROSTER ===================== */
+function renderRoster(){
+  const q = (document.getElementById('rosterSearch').value || '').toLowerCase();
+  const body = document.getElementById('rosterBody');
+  const filtered = employees.filter(e => e.name.toLowerCase().includes(q) || e.dept.toLowerCase().includes(q));
+  body.innerHTML = '';
+  document.getElementById('rosterEmpty').style.display = filtered.length ? 'none' : 'block';
+  filtered.forEach(e => {
+    body.innerHTML += `
+      <tr onclick="openDetail('${e.id}')">
+        <td class="name-cell"><div class="avatar">${initials(e.name)}</div><div class="who"><b>${e.name}</b><span>${e.id} · ${e.email}</span></div></td>
+        <td>${e.designation}</td>
+        <td>${e.dept}</td>
+        <td class="mono">${money(e.salary)}</td>
+        <td>${new Date(e.joined).toLocaleDateString('en-US',{month:'short', year:'numeric', day:'numeric'})}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); openDetail('${e.id}')">View →</button></td>
+      </tr>`;
+  });
+}
+
+function openAddModal(){ document.getElementById('addModal').classList.add('active'); }
+function closeAddModal(){
+  document.getElementById('addModal').classList.remove('active');
+  ['fName','fDesignation','fDept','fSalary','fJoined','fEmail'].forEach(id => document.getElementById(id).value = '');
+}
+function submitAddFaculty(){
+  const name = document.getElementById('fName').value.trim();
+  const designation = document.getElementById('fDesignation').value.trim() || 'Faculty';
+  const dept = document.getElementById('fDept').value.trim() || 'General';
+  const salary = parseFloat(document.getElementById('fSalary').value) || 0;
+  const joined = document.getElementById('fJoined').value || todayKey();
+  const email = document.getElementById('fEmail').value.trim() || '—';
+
+  if (!name || !salary){
+    alert('Please enter at least a name and a monthly salary.');
+    return;
+  }
+  const id = 'F' + String(nextIdNum++).padStart(3,'0');
+  employees.push({ id, name, designation, dept, salary, joined, email });
+  attendance[id] = {};
+  closeAddModal();
+  renderRoster();
+  renderDashboard();
+}
+
+/* ===================== EMPLOYEE DETAIL ===================== */
+function openDetail(id){
+  currentDetailId = id;
+  document.getElementById('detailMonthInput').value = currentMonthKey();
+  renderDetail();
+  goTo('detail');
+  // goTo hides other views only; ensure detail view is shown
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-detail').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+}
+document.getElementById('detailMonthInput').addEventListener('change', renderDetail);
+
+function renderDetail(){
+  const e = employees.find(x => x.id === currentDetailId);
+  if (!e) return;
+  const ym = document.getElementById('detailMonthInput').value || currentMonthKey();
+
+  document.getElementById('detailProfilePanel').innerHTML = `
+    <div class="profile-head">
+      <div class="avatar">${initials(e.name)}</div>
+      <div>
+        <h2>${e.name}</h2>
+        <div class="sub">${e.designation} · ${e.dept}</div>
+      </div>
+    </div>
+    <div class="id-card">
+      <div class="item"><div class="k">Faculty ID</div><div class="v">${e.id}</div></div>
+      <div class="item"><div class="k">Email</div><div class="v" style="font-size:12.5px;">${e.email}</div></div>
+      <div class="item"><div class="k">Joined</div><div class="v">${new Date(e.joined).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div></div>
+    </div>
+  `;
+
+  const s = computeSalary(e, ym);
+  document.getElementById('detailMonthLabel').textContent = monthLabel(ym);
+  document.getElementById('detailMonthLabel2').textContent = monthLabel(ym);
+  document.getElementById('detailSalaryBody').innerHTML = `
+    <div class="salary-breakdown">
+      <div>
+        <div class="sb-line"><span>Base Monthly Salary</span><b>${money(e.salary)}</b></div>
+        <div class="sb-line"><span>Per-Day Rate</span><b>${money(s.perDay)}</b></div>
+        <div class="sb-line"><span>Days Marked Present</span><b>${s.present}</b></div>
+      </div>
+      <div>
+        <div class="sb-line deduct"><span>Half Days (× ${money(s.perDay/2)})</span><b>${s.half} → −${money(s.half*s.perDay*0.5)}</b></div>
+        <div class="sb-line deduct"><span>Full Leave Days (× ${money(s.perDay)})</span><b>${s.leave} → −${money(s.leave*s.perDay)}</b></div>
+        <div class="sb-line net"><span>Net Salary Payable</span><b>${money(s.net)}</b></div>
+      </div>
+    </div>
+  `;
+
+  const rec = attendance[e.id] || {};
+  const rows = Object.keys(rec).filter(d => d.startsWith(ym)).sort();
+  const body = document.getElementById('detailAttBody');
+  body.innerHTML = '';
+  document.getElementById('detailAttEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.reverse().forEach(dstr => {
+    const [y,m,d] = dstr.split('-').map(Number);
+    const dt = new Date(y,m-1,d);
+    const st = rec[dstr];
+    body.innerHTML += `
+      <tr>
+        <td class="mono">${dstr}</td>
+        <td>${dt.toLocaleDateString('en-US',{weekday:'short'})}</td>
+        <td><span class="stamp ${st}">${st === 'present' ? 'Present' : st === 'half' ? 'Half Day' : 'Leave'}</span></td>
+      </tr>`;
+  });
+}
+
+/* ===================== ATTENDANCE ===================== */
+document.getElementById('attDatePicker').value = todayKey();
+document.getElementById('attDatePicker').addEventListener('change', renderAttendance);
+
+function renderAttendance(){
+  const dstr = document.getElementById('attDatePicker').value || todayKey();
+  document.getElementById('attDateLabel').textContent = dateLabel(dstr);
+  const list = document.getElementById('attList');
+  list.innerHTML = '';
+  document.getElementById('attEmpty').style.display = employees.length ? 'none' : 'block';
+
+  employees.forEach(e => {
+    const current = (attendance[e.id]||{})[dstr] || null;
+    list.innerHTML += `
+      <div class="att-row" data-emp="${e.id}">
+        <div class="name-cell"><div class="avatar">${initials(e.name)}</div><div class="who"><b>${e.name}</b><span>${e.dept}</span></div></div>
+        <div class="stamp-choices">
+          <button type="button" class="choice sel-present ${current==='present'?'on':''}" onclick="setChoice('${e.id}','present')">Present</button>
+          <button type="button" class="choice sel-half ${current==='half'?'on':''}" onclick="setChoice('${e.id}','half')">Half Day</button>
+          <button type="button" class="choice sel-leave ${current==='leave'?'on':''}" onclick="setChoice('${e.id}','leave')">Leave</button>
+        </div>
+      </div>`;
+  });
+}
+
+let pendingAttendance = {};
+function setChoice(empId, status){
+  pendingAttendance[empId] = status;
+  const row = document.querySelector(`.att-row[data-emp="${empId}"]`);
+  row.querySelectorAll('.choice').forEach(c => c.classList.remove('on'));
+  row.querySelector('.sel-' + status).classList.add('on');
+}
+function saveAttendance(){
+  const dstr = document.getElementById('attDatePicker').value || todayKey();
+  Object.keys(pendingAttendance).forEach(empId => {
+    if (!attendance[empId]) attendance[empId] = {};
+    attendance[empId][dstr] = pendingAttendance[empId];
+  });
+  pendingAttendance = {};
+  renderDashboard();
+  renderAttendance();
+  const btn = event.target;
+  const original = btn.textContent;
+  btn.textContent = 'Saved ✓';
+  setTimeout(()=> btn.textContent = original, 1200);
+}
+
+/* ===================== PAYROLL ===================== */
+document.getElementById('payrollMonthInput').value = currentMonthKey();
+document.getElementById('payrollMonthInput').addEventListener('change', renderPayroll);
+let currentAttEditEmpId = null;
+
+function renderPayroll(){
+  const ym = document.getElementById('payrollMonthInput').value || currentMonthKey();
+  document.getElementById('payrollPanelLabel').textContent = 'Payroll — ' + monthLabel(ym);
+  const q = (document.getElementById('payrollSearch').value || '').toLowerCase();
+  const body = document.getElementById('payrollBody');
+  body.innerHTML = '';
+
+  const filtered = employees.filter(e => e.name.toLowerCase().includes(q) || e.dept.toLowerCase().includes(q));
+  document.getElementById('payrollEmpty').style.display = filtered.length ? 'none' : 'block';
+
+  filtered.forEach(e => {
+    const s = computeSalary(e, ym);
+    body.innerHTML += `
+      <tr>
+        <td class="name-cell"><div class="avatar">${initials(e.name)}</div><div class="who"><b>${e.name}</b><span>${e.designation}</span></div></td>
+        <td>${e.dept}</td>
+        <td><span class="stamp present" style="border-style:solid;">${s.present}</span></td>
+        <td><span class="stamp half" style="border-style:solid;">${s.half}</span></td>
+        <td><span class="stamp leave" style="border-style:solid;">${s.leave}</span></td>
+        <td class="mono">${money(e.salary)}</td>
+        <td class="mono" style="color:var(--terracotta)">${s.deduction>0?'−'+money(s.deduction):'—'}</td>
+        <td class="mono" style="font-weight:700;color:var(--sage)">${money(s.net)}</td>
+        <td>
+          <button class="icon-btn" title="Edit attendance" onclick="event.stopPropagation(); openAttEditModal('${e.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+        </td>
+      </tr>`;
+  });
+
+  let gAll=0, dAll=0, nAll=0;
+  employees.forEach(e => { const s = computeSalary(e, ym); gAll+=e.salary; dAll+=s.deduction; nAll+=s.net; });
+  document.getElementById('payStatCount').textContent = employees.length;
+  document.getElementById('payStatGross').textContent = money(gAll);
+  document.getElementById('payStatDeduct').textContent = money(dAll);
+  document.getElementById('payStatNet').textContent = money(nAll);
+}
+
+function openAttEditModal(empId){
+  currentAttEditEmpId = empId;
+  document.getElementById('attEditModal').classList.add('active');
+  renderAttEditModal();
+}
+function closeAttEditModal(){
+  document.getElementById('attEditModal').classList.remove('active');
+  renderPayroll();
+}
+function renderAttEditModal(){
+  const e = employees.find(x => x.id === currentAttEditEmpId);
+  const ym = document.getElementById('payrollMonthInput').value || currentMonthKey();
+  const [y,m] = ym.split('-').map(Number);
+  const total = daysInMonth(y, m-1);
+  document.getElementById('attEditModalTitle').textContent = e.name + ' — ' + monthLabel(ym);
+
+  const s = computeSalary(e, ym);
+  document.getElementById('attEditSummary').innerHTML = `
+    <div class="sb-summary"><span>Base Salary</span><b class="mono">${money(e.salary)}</b></div>
+    <div class="sb-summary"><span>Per-Day Rate</span><b class="mono">${money(s.perDay)}</b></div>
+    <div class="sb-summary"><span>Deducted (${s.half} half + ${s.leave} leave)</span><b class="mono" style="color:var(--terracotta)">−${money(s.deduction)}</b></div>
+    <div class="sb-summary net"><span>Net Salary</span><b>${money(s.net)}</b></div>
+  `;
+
+  const rec = attendance[e.id] || {};
+  const editor = document.getElementById('attEditDays');
+  let rows = '';
+  for (let d = 1; d <= total; d++){
+    const dt = new Date(y, m-1, d);
+    const key = fmtDate(dt);
+    const cur = rec[key] || null;
+    const dayName = dt.toLocaleDateString('en-US',{weekday:'short'});
+    rows += `
+      <div class="row-day">
+        <span class="mono" style="font-size:12.5px;">${key} <span style="color:var(--muted)">(${dayName})</span></span>
+        <span>
+          <button class="choice sel-present ${cur==='present'?'on':''}" onclick="setAttEditDay('${key}','present')">P</button>
+          <button class="choice sel-half ${cur==='half'?'on':''}" onclick="setAttEditDay('${key}','half')">Half</button>
+          <button class="choice sel-leave ${cur==='leave'?'on':''}" onclick="setAttEditDay('${key}','leave')">Leave</button>
+        </span>
+      </div>`;
+  }
+  editor.innerHTML = rows;
+}
+function setAttEditDay(dateKey, status){
+  if (!attendance[currentAttEditEmpId]) attendance[currentAttEditEmpId] = {};
+  const cur = attendance[currentAttEditEmpId][dateKey];
+  if (cur === status) delete attendance[currentAttEditEmpId][dateKey];
+  else attendance[currentAttEditEmpId][dateKey] = status;
+  renderAttEditModal();
+}
+
+/* ===================== INIT ===================== */
+renderDashboard();
+renderRoster();
+renderAttendance();
+renderPayroll();
+</script>
+</body>
+</html>
